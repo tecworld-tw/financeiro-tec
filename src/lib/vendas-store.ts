@@ -92,6 +92,7 @@ function mapEstoqueToFrontend(v: any): ItemEstoque {
 function mapToBackend(v: Partial<Venda>) {
   const payload: any = {};
   if (v.id) payload.linhaNumero = parseInt(v.id);
+  if ((v as any).estoqueId) payload.estoqueId = (v as any).estoqueId;
   if (v.nomeCliente !== undefined) payload.nomeCliente = v.nomeCliente;
   if (v.contato !== undefined) payload.numeroInsta = v.contato;
   if (v.valor !== undefined) payload.valor = v.valor;

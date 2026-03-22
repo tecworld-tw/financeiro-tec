@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Venda } from "@/lib/types";
+import { Venda, ItemEstoque } from "@/lib/types";
 import { BottomSheet } from "./BottomSheet";
 import { toast } from "sonner";
-import { CreditCard, Banknote, Landmark, Receipt } from "lucide-react";
+import { CreditCard, Banknote, Landmark, Receipt, Package, Search } from "lucide-react";
+import { getEstoque, calcularSugestaoVenda } from "@/lib/vendas-store";
 
 interface VendaModalProps {
   open: boolean;
@@ -31,6 +32,15 @@ const emptyForm: Omit<Venda, "id"> = {
 
 export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
   const [form, setForm] = useState(emptyForm);
+  const [estoque, setEstoque] = useState<ItemEstoque[]>([]);
+  const [search, setSearch] = useState("");
+  const [showEstoque, setShowEstoque] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      getEstoque().then(setEstoque);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (venda) {
@@ -62,6 +72,17 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
       toast.error("Preencha nome do cliente e descrição");
       return;
     }
+
+    // Validar estoque se houver um item selecionado
+    const selectedEstoqueId = (form as any).estoqueId;
+    if (selectedEstoqueId) {
+      const item = estoque.find(i => i.id === selectedEstoqueId);
+      if (item && item.quantidade < form.quantidade) {
+        toast.error(`Estoque insuficiente! Apenas ${item.quantidade} em estoque.`);
+        return;
+      }
+    }
+
     if (form.valor <= 0) {
       toast.error("Valor deve ser maior que zero");
       return;
@@ -71,6 +92,12 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
   };
 
   const set = (key: string, value: unknown) => setForm((f) => ({ ...f, [key]: value }));
+
+  const filteredEstoque = estoque.filter(item => 
+    item.status === "em_estoque" && 
+    item.quantidade > 0 &&
+    item.nomeProduto.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <BottomSheet open={open} onClose={onClose} title={venda ? "Editar Venda" : "Nova Venda"}>
@@ -86,15 +113,71 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
             />
           </Field>
 
-          <Field label="Produto / Descrição">
-            <input
-              required
-              value={form.descricao}
-              onChange={(e) => set("descricao", e.target.value.toUpperCase())}
-              className="input-field h-12 text-sm font-bold"
-              placeholder="EX: FONE BLUETOOTH"
-            />
-          </Field>
+          <div className="relative">
+            <Field label="Produto do Estoque">
+              <div className="relative flex items-center">
+                <input
+                  required
+                  value={form.descricao}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    set("descricao", val);
+                    setSearch(val);
+                    setShowEstoque(true);
+                    // Se o usuário digitar algo diferente, limpa o ID do estoque para não dar baixa errada
+                    if ((form as any).estoqueId) {
+                      set("estoqueId", undefined);
+                    }
+                  }}
+                  onFocus={() => setShowEstoque(true)}
+                  className="input-field h-12 text-sm font-bold pr-10"
+                  placeholder="BUSCAR NO ESTOQUE..."
+                />
+                <div className="absolute right-3 text-muted-foreground">
+                  {showEstoque ? <Search className="h-4 w-4" /> : <Package className="h-4 w-4" />}
+                </div>
+              </div>
+            </Field>
+
+            {showEstoque && filteredEstoque.length > 0 && (
+              <div className="absolute z-50 w-full mt-2 max-h-60 overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in slide-in-from-top-2">
+                {filteredEstoque.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      set("descricao", item.nomeProduto.toUpperCase());
+                      set("estoqueId", item.id);
+                      const precoSugerido = calcularSugestaoVenda(item.valorCompra);
+                      set("valor", precoSugerido);
+                      setShowEstoque(false);
+                      setSearch("");
+                      toast.success(`Produto selecionado: Sugestão R$ ${precoSugerido.toFixed(2)}`);
+                    }}
+                    className="w-full flex items-center justify-between p-4 hover:bg-primary/5 border-b border-border/50 last:border-0 transition-colors"
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-xs font-black uppercase tracking-tight">{item.nomeProduto}</span>
+                      <span className="text-[10px] text-muted-foreground font-bold">
+                        {item.quantidade} EM ESTOQUE • CUSTO {item.valorCompra.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] block font-bold text-muted-foreground uppercase">Sugestão</span>
+                      <span className="text-xs font-black text-primary">
+                        {calcularSugestaoVenda(item.valorCompra).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {showEstoque && search && filteredEstoque.length === 0 && (
+              <div className="absolute z-50 w-full mt-2 p-4 rounded-2xl border border-border bg-card shadow-2xl text-center">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase">Nenhum produto encontrado</span>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Valor (R$)">

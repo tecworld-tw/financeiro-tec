@@ -83,7 +83,7 @@ function doPost(e) {
   const action = data.action;
   
   // Vendas
-  if (action === "add") return handleAddVenda(sheetVendas, data);
+  if (action === "add") return handleAddVenda(sheetVendas, sheetEstoque, data);
   if (action === "update") return handleUpdateVenda(sheetVendas, data);
   if (action === "delete") return handleDeleteGeneric(sheetVendas, data);
   if (action === "baixarParcela") return handleBaixarParcela(sheetVendas, data);
@@ -115,12 +115,37 @@ function handleGetGeneric(sheet) {
   return createResponse(result);
 }
 
-function handleAddVenda(sheet, data) {
+function handleAddVenda(sheet, sheetEstoque, data) {
   const valorTotal = parseFloat(data.valor) || 0;
+  const qtdVendida = parseInt(data.qtd) || 1;
   const forma = data.formaPagamento || "Dinheiro";
   const tipoC = data.tipoCartao || "";
   const isVista = forma === "Dinheiro" || forma === "Pix" || (forma === "Cartão" && tipoC === "Débito");
   
+  // Lógica de Baixa de Estoque
+  if (data.estoqueId) {
+    const rowNumEstoque = parseInt(data.estoqueId);
+    if (rowNumEstoque >= 2) {
+      const headersEstoque = getHeaders(sheetEstoque);
+      const rangeEstoque = sheetEstoque.getRange(rowNumEstoque, 1, 1, headersEstoque.length);
+      const vEstoque = rangeEstoque.getValues()[0];
+      
+      const qIdx = headersEstoque.indexOf("quantidade");
+      const sIdx = headersEstoque.indexOf("status");
+      
+      if (qIdx !== -1) {
+        let qtdAtual = parseInt(vEstoque[qIdx]) || 0;
+        let novaQtd = Math.max(0, qtdAtual - qtdVendida);
+        vEstoque[qIdx] = novaQtd;
+        
+        if (novaQtd <= 0 && sIdx !== -1) {
+          vEstoque[sIdx] = "esgotado";
+        }
+        rangeEstoque.setValues([vEstoque]);
+      }
+    }
+  }
+
   const row = [
     data.dataVenda || Utilities.formatDate(new Date(), "GMT-3", "dd/MM/yyyy"),
     String(data.nomeCliente || "").toUpperCase(),
