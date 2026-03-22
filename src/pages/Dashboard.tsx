@@ -5,7 +5,8 @@ import { NotificacoesSheet } from "@/components/NotificacoesSheet";
 import { Venda } from "@/lib/types";
 import { toast } from "sonner";
 import {
-  DollarSign, ShoppingBag, Clock, CreditCard, AlertTriangle, TrendingUp, Users, Package, Loader2
+  DollarSign, ShoppingBag, Clock, CreditCard,
+  AlertTriangle, TrendingUp, Users, Package, Loader2, X,
 } from "lucide-react";
 
 const MESES = [
@@ -14,10 +15,10 @@ const MESES = [
 ];
 
 export default function Dashboard() {
-  const [vendas, setVendas] = useState<Venda[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mesFiltro, setMesFiltro] = useState<string>("");
-  const [anoFiltro, setAnoFiltro] = useState<string>("");
+  const [vendas,     setVendas]     = useState<Venda[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [mesFiltro,  setMesFiltro]  = useState<string>("");
+  const [anoFiltro,  setAnoFiltro]  = useState<string>("");
   const [notifsOpen, setNotifsOpen] = useState(false);
 
   const reload = useCallback(async () => {
@@ -25,16 +26,14 @@ export default function Dashboard() {
       setLoading(true);
       const data = await getVendas();
       setVendas(data);
-    } catch (error) {
+    } catch {
       toast.error("Erro ao carregar dados do dashboard");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  useEffect(() => { reload(); }, [reload]);
 
   const notificacoes = useMemo(() => getNotificacoes(vendas), [vendas]);
 
@@ -55,138 +54,149 @@ export default function Dashboard() {
 
   const kpis = useMemo(() => {
     const faturamento = filtradas.reduce((s, v) => s + v.valor, 0);
-    const qtdTotal = filtradas.length;
-    const pagas = filtradas.filter(v => v.pago);
-    const recebido = pagas.reduce((s, v) => s + v.valor, 0);
-    const pendentes = filtradas.filter(v => !v.pago);
-    const aReceber = pendentes.reduce((s, v) => s + v.valor, 0);
-    const fiadas = filtradas.filter(v => v.fiado);
-    const totalFiado = fiadas.reduce((s, v) => s + v.valor, 0);
+    const qtdTotal    = filtradas.length;
+    const pagas       = filtradas.filter((v) => v.pago);
+    const recebido    = pagas.reduce((s, v) => s + v.valor, 0);
+    const pendentes   = filtradas.filter((v) => !v.pago);
+    const aReceber    = pendentes.reduce((s, v) => s + v.valor, 0);
+    const fiadas      = filtradas.filter((v) => v.fiado);
+    const totalFiado  = fiadas.reduce((s, v) => s + v.valor, 0);
 
-    const hoje = new Date(); hoje.setHours(0,0,0,0);
-    const vencidas = filtradas.filter(v => v.fiado && !v.pago && v.vencimento && new Date(v.vencimento+"T00:00:00") < hoje);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const vencidas     = filtradas.filter((v) => v.fiado && !v.pago && v.vencimento && new Date(v.vencimento + "T00:00:00") < hoje);
     const totalVencidas = vencidas.reduce((s, v) => s + v.valor, 0);
 
-    const clientes = new Set(filtradas.map(v => v.nomeCliente)).size;
+    const clientes    = new Set(filtradas.map((v) => v.nomeCliente)).size;
     const ticketMedio = qtdTotal > 0 ? faturamento / qtdTotal : 0;
 
-    return { faturamento, qtdTotal, recebido, aReceber, totalFiado, totalVencidas, clientes, ticketMedio, qtdPendentes: pendentes.length, qtdVencidas: vencidas.length };
+    return {
+      faturamento, qtdTotal, recebido, aReceber,
+      totalFiado, totalVencidas, clientes, ticketMedio,
+      qtdPendentes: pendentes.length,
+      qtdVencidas:  vencidas.length,
+    };
   }, [filtradas]);
 
+  const temFiltro = mesFiltro || anoFiltro;
+
   return (
-    <div className="min-h-screen bg-background">
+    // ✅ Mesma estrutura raiz do Index
+    <div className="min-h-screen bg-background selection:bg-primary/30">
       <Header notificacoes={notificacoes} onNotificacoesClick={() => setNotifsOpen(true)} />
 
-      <main className="mx-auto max-w-7xl px-4 pb-16">
-        <div className="mt-8 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* ✅ Mesmo padrão de main do Index: max-w-7xl px-4 pb-32 */}
+      <main className="mx-auto max-w-7xl px-4 pb-32">
+
+        {/* Cabeçalho */}
+        <div className="mt-6 mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground">
-              Dashboard <TrendingUp className="inline-block h-6 w-6 text-primary ml-1" />
+            <h2 className="text-3xl md:text-4xl font-black tracking-tighter text-foreground flex items-center gap-2">
+              DASHBOARD
+              <TrendingUp className="inline-block h-6 w-6 text-primary" />
             </h2>
             <p className="text-sm font-medium text-muted-foreground opacity-70">
               Visão geral do seu negócio
             </p>
           </div>
 
-          {/* Filters */}
-          <div className="animate-fade-in-up flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0">
-            <select
-              value={mesFiltro}
-              onChange={(e) => setMesFiltro(e.target.value)}
-              className="input-field min-w-[140px] text-xs font-bold"
+          {/* Botão Atualizar desktop */}
+          <div className="hidden md:flex gap-2">
+            <button
+              onClick={reload}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-secondary text-secondary-foreground text-sm font-bold hover:bg-secondary/80 transition-all disabled:opacity-50"
             >
-              <option value="">Todos os meses</option>
-              {MESES.map((m, i) => (
-                <option key={i} value={String(i + 1)}>{m}</option>
-              ))}
-            </select>
-            <select
-              value={anoFiltro}
-              onChange={(e) => setAnoFiltro(e.target.value)}
-              className="input-field min-w-[100px] text-xs font-bold"
-            >
-              <option value="">Todos</option>
-              {anos.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
-            {(mesFiltro || anoFiltro) && (
+              <Loader2 className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              Atualizar
+            </button>
+          </div>
+        </div>
+
+        {/* ✅ Filtros — mesmo padrão grid + pills do Index */}
+        <div className="animate-fade-in-up animate-delay-1 grid grid-cols-1 lg:grid-cols-12 gap-4 mb-8">
+
+          {/* Selects de mês/ano agrupados no lugar da busca */}
+          <div className="lg:col-span-5 flex gap-2">
+            <div className="relative flex-1 group">
+              <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl group-focus-within:bg-primary/10 transition-all" />
+              <select
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(e.target.value)}
+                className="relative input-field py-4 border-white/5 bg-white/5 backdrop-blur-md rounded-2xl shadow-inner w-full text-sm font-bold appearance-none"
+              >
+                <option value="">Todos os meses</option>
+                {MESES.map((m, i) => (
+                  <option key={i} value={String(i + 1)}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative group">
+              <div className="absolute inset-0 bg-primary/5 rounded-2xl blur-xl group-focus-within:bg-primary/10 transition-all" />
+              <select
+                value={anoFiltro}
+                onChange={(e) => setAnoFiltro(e.target.value)}
+                className="relative input-field py-4 border-white/5 bg-white/5 backdrop-blur-md rounded-2xl shadow-inner text-sm font-bold appearance-none"
+              >
+                <option value="">Todos</option>
+                {anos.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Pills de período rápido */}
+          <div className="lg:col-span-7 flex gap-2 overflow-x-auto no-scrollbar pb-2 lg:pb-0 items-center">
+            {[
+              { label: "Este mês", mes: String(new Date().getMonth() + 1), ano: String(new Date().getFullYear()) },
+              { label: "Mês passado", mes: String(new Date().getMonth() === 0 ? 12 : new Date().getMonth()), ano: String(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()) },
+              { label: "Este ano", mes: "", ano: String(new Date().getFullYear()) },
+            ].map((p) => {
+              const isActive = mesFiltro === p.mes && anoFiltro === p.ano;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => { setMesFiltro(p.mes); setAnoFiltro(p.ano); }}
+                  className={`flex items-center gap-2 whitespace-nowrap rounded-2xl px-5 py-3 text-xs font-black uppercase tracking-wider transition-all active:scale-95 border shadow-lg ${
+                    isActive
+                      ? "bg-primary text-primary-foreground border-primary shadow-primary/20"
+                      : "bg-card text-muted-foreground border-border/40 hover:bg-accent"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+
+            {/* Limpar filtro */}
+            {temFiltro && (
               <button
                 onClick={() => { setMesFiltro(""); setAnoFiltro(""); }}
-                className="whitespace-nowrap rounded-xl bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition-all"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wider border shadow-lg bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20 transition-all active:scale-95"
               >
+                <X className="h-3 w-3" />
                 Limpar
               </button>
             )}
           </div>
         </div>
 
-        {/* KPI Grid - Responsive */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
+        {/* Grid KPIs — mesmo padrão do Index */}
+        <div className="animate-fade-in-up animate-delay-2 grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-32 rounded-3xl bg-secondary/50 animate-pulse" />
             ))
           ) : (
             <>
-              <KpiTile
-                icon={<DollarSign className="h-5 w-5" />}
-                label="Faturamento"
-                value={formatCurrency(kpis.faturamento)}
-                accent="primary"
-                delay={0}
-              />
-              <KpiTile
-                icon={<TrendingUp className="h-5 w-5" />}
-                label="Recebido"
-                value={formatCurrency(kpis.recebido)}
-                accent="success"
-                delay={60}
-              />
-              <KpiTile
-                icon={<Clock className="h-5 w-5" />}
-                label="A Receber"
-                value={formatCurrency(kpis.aReceber)}
-                sub={`${kpis.qtdPendentes} venda(s)`}
-                accent="warning"
-                delay={120}
-              />
-              <KpiTile
-                icon={<AlertTriangle className="h-5 w-5" />}
-                label="Vencidas"
-                value={formatCurrency(kpis.totalVencidas)}
-                sub={`${kpis.qtdVencidas} venda(s)`}
-                accent="destructive"
-                delay={180}
-              />
-              <KpiTile
-                icon={<CreditCard className="h-5 w-5" />}
-                label="Total Fiado"
-                value={formatCurrency(kpis.totalFiado)}
-                accent="info"
-                delay={240}
-              />
-              <KpiTile
-                icon={<ShoppingBag className="h-5 w-5" />}
-                label="Total Vendas"
-                value={String(kpis.qtdTotal)}
-                accent="primary"
-                delay={300}
-              />
-              <KpiTile
-                icon={<Users className="h-5 w-5" />}
-                label="Clientes"
-                value={String(kpis.clientes)}
-                accent="info"
-                delay={360}
-              />
-              <KpiTile
-                icon={<Package className="h-5 w-5" />}
-                label="Ticket Médio"
-                value={formatCurrency(kpis.ticketMedio)}
-                accent="primary"
-                delay={420}
-              />
+              <KpiCard label="Faturamento"  value={formatCurrency(kpis.faturamento)}  icon={<DollarSign  className="h-4 w-4" />} accent="primary"     />
+              <KpiCard label="Recebido"     value={formatCurrency(kpis.recebido)}      icon={<TrendingUp  className="h-4 w-4" />} accent="success"     />
+              <KpiCard label="A Receber"    value={formatCurrency(kpis.aReceber)}      icon={<Clock       className="h-4 w-4" />} accent="warning"     sub={`${kpis.qtdPendentes} venda(s)`} />
+              <KpiCard label="Vencidas"     value={formatCurrency(kpis.totalVencidas)} icon={<AlertTriangle className="h-4 w-4" />} accent="destructive" sub={`${kpis.qtdVencidas} venda(s)`} />
+              <KpiCard label="Total Fiado"  value={formatCurrency(kpis.totalFiado)}   icon={<CreditCard  className="h-4 w-4" />} accent="primary"     />
+              <KpiCard label="Total Vendas" value={String(kpis.qtdTotal)}             icon={<ShoppingBag className="h-4 w-4" />} accent="success"     />
+              <KpiCard label="Clientes"     value={String(kpis.clientes)}             icon={<Users       className="h-4 w-4" />} accent="warning"     />
+              <KpiCard label="Ticket Médio" value={formatCurrency(kpis.ticketMedio)}  icon={<Package     className="h-4 w-4" />} accent="destructive" />
             </>
           )}
         </div>
@@ -201,50 +211,28 @@ export default function Dashboard() {
   );
 }
 
-function KpiTile({
-  icon,
-  label,
-  value,
-  sub,
-  accent,
-  delay = 0,
+// ✅ SummaryCard idêntico ao do Index (renomeado KpiCard para clareza)
+function KpiCard({
+  label, value, accent, icon, sub,
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  sub?: string;
-  accent: "primary" | "success" | "warning" | "destructive" | "info";
-  delay?: number;
+  label:  string;
+  value:  string;
+  accent: "primary" | "success" | "warning" | "destructive";
+  icon?:  React.ReactNode;
+  sub?:   string;
 }) {
-  const iconBg = {
-    primary: "bg-primary/10 text-primary",
-    success: "bg-success/10 text-success",
-    warning: "bg-warning/10 text-warning",
-    destructive: "bg-destructive/10 text-destructive",
-    info: "bg-info/10 text-info",
-  }[accent];
-
-  const borderColor = {
-    primary: "border-t-primary/40",
-    success: "border-t-success/40",
-    warning: "border-t-warning/40",
-    destructive: "border-t-destructive/40",
-    info: "border-t-info/40",
-  }[accent];
+  const accentClasses =
+    accent === "success"     ? "from-success/20 to-success/5 border-success/10 text-success"
+    : accent === "warning"   ? "from-warning/20 to-warning/5 border-warning/10 text-warning"
+    : accent === "destructive" ? "from-destructive/20 to-destructive/5 border-destructive/10 text-destructive"
+    : "from-primary/20 to-primary/5 border-primary/10 text-primary";
 
   return (
-    <div
-      className={`animate-fade-in-up glass-card border-t-2 p-4 ${borderColor}`}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-          {label}
-        </span>
-        <div className={`rounded-lg p-1.5 ${iconBg}`}>{icon}</div>
-      </div>
-      <p className="text-lg font-bold tabular-nums leading-tight">{value}</p>
-      {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
+    <div className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 backdrop-blur-sm shadow-lg ${accentClasses}`}>
+      <div className="absolute -right-2 -top-2 opacity-10">{icon}</div>
+      <p className="text-[10px] font-black uppercase tracking-widest opacity-60 mb-1">{label}</p>
+      <p className="text-base font-black tabular-nums tracking-tight">{value}</p>
+      {sub && <p className="text-[10px] opacity-60 mt-0.5">{sub}</p>}
     </div>
   );
 }
