@@ -13,7 +13,6 @@ const FILTROS: { key: FiltroStatus; label: string; icon?: React.ReactNode }[] = 
   { key: "todos", label: "Todas" },
   { key: "nao-pago", label: "Pendentes" },
   { key: "vencido", label: "Vencidas", icon: <AlertTriangle className="h-3 w-3" /> },
-  { key: "fiado", label: "Fiado" },
   { key: "pago", label: "Pagas" },
 ];
 

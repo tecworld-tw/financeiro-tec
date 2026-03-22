@@ -31,3 +31,16 @@ export interface Notificacao {
 }
 
 export type FiltroStatus = "todos" | "pago" | "nao-pago" | "vencido" | "fiado";
+
+export interface ItemEstoque {
+  id: string;
+  dataCompra: string;
+  nomeProduto: string;
+  quantidade: number;
+  valorCompra: number;
+  status: "em_estoque" | "esgotado";
+  origem: string; // Ex: AliExpress, Manual, etc.
+  comprovanteUrl?: string;
+}
+
+export type FiltroEstoque = "todos" | "disponivel" | "esgotado";

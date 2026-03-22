@@ -1,18 +1,20 @@
 /**
- * TecWorld - Google Apps Script Backend (V3 - Alta Performance)
+ * TecWorld - Google Apps Script Backend (V4 - Com Gestão de Estoque)
  * Otimizado para redução de chamadas de disco e processamento em lote.
  */
 
-const SHEET_NAME = "Vendas";
+const SHEET_VENDAS = "Vendas";
+const SHEET_ESTOQUE = "estoque";
 const SPREADSHEET_ID = "1URTuXQOinj2bsG_Ld2dtw3AQ1WJywW40Ac7LYnQRXDI";
 
-// Cache de cabeçalhos para evitar múltiplas chamadas getDataRange()[0]
-let cachedHeaders = null;
+// Cache de cabeçalhos para evitar múltiplas chamadas
+let cachedHeaders = {};
 
 function getHeaders(sheet) {
-  if (cachedHeaders) return cachedHeaders;
-  cachedHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  return cachedHeaders;
+  const name = sheet.getName();
+  if (cachedHeaders[name]) return cachedHeaders[name];
+  cachedHeaders[name] = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  return cachedHeaders[name];
 }
 
 function getSS() {
@@ -25,34 +27,52 @@ function getSS() {
 
 function setup() {
   const ss = getSS();
-  let sheet = ss.getSheetByName(SHEET_NAME);
   
-  const headers = [
+  // Setup Vendas
+  let sheetVendas = ss.getSheetByName(SHEET_VENDAS);
+  const headersVendas = [
     "data venda", "cliente", "valor", "qtd", "descricao", "fiado", 
     "vencimento", "status pagamento", "numeroInsta", "formaPagamento", 
     "tipoCartao", "parcelasTotal", "parcelasPagas", "valorPago", "valorRestante"
   ];
-
-  if (!sheet) {
-    sheet = ss.insertSheet(SHEET_NAME);
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.setFrozenRows(1);
-    sheet.getRange("C:C").setNumberFormat("R$ #,##0.00");
-    sheet.getRange("N:O").setNumberFormat("R$ #,##0.00");
-    sheet.getRange("A:A").setNumberFormat("dd/MM/yyyy");
-    sheet.getRange("G:G").setNumberFormat("dd/MM/yyyy");
+  if (!sheetVendas) {
+    sheetVendas = ss.insertSheet(SHEET_VENDAS);
+    sheetVendas.getRange(1, 1, 1, headersVendas.length).setValues([headersVendas]);
+    sheetVendas.setFrozenRows(1);
+    sheetVendas.getRange("C:C").setNumberFormat("R$ #,##0.00");
+    sheetVendas.getRange("N:O").setNumberFormat("R$ #,##0.00");
+    sheetVendas.getRange("A:A").setNumberFormat("dd/MM/yyyy");
+    sheetVendas.getRange("G:G").setNumberFormat("dd/MM/yyyy");
   }
-  return sheet;
+
+  // Setup Estoque
+  let sheetEstoque = ss.getSheetByName(SHEET_ESTOQUE);
+  const headersEstoque = [
+    "dataCompra", "nomeProduto", "quantidade", "valorCompra", "status", "origem", "comprovanteUrl"
+  ];
+  if (!sheetEstoque) {
+    sheetEstoque = ss.insertSheet(SHEET_ESTOQUE);
+    sheetEstoque.getRange(1, 1, 1, headersEstoque.length).setValues([headersEstoque]);
+    sheetEstoque.setFrozenRows(1);
+    sheetEstoque.getRange("D:D").setNumberFormat("R$ #,##0.00");
+    sheetEstoque.getRange("A:A").setNumberFormat("dd/MM/yyyy");
+  }
+
+  return { ss, sheetVendas, sheetEstoque };
 }
 
 function doGet(e) {
-  const sheet = setup(); 
-  if (e.parameter.action === "getVendas") return handleGetVendas(sheet);
+  const { sheetVendas, sheetEstoque } = setup(); 
+  const action = e.parameter.action;
+  
+  if (action === "getVendas") return handleGetGeneric(sheetVendas);
+  if (action === "getEstoque") return handleGetGeneric(sheetEstoque);
+  
   return createResponse({ error: "Ação inválida" });
 }
 
 function doPost(e) {
-  const sheet = setup();
+  const { sheetVendas, sheetEstoque } = setup();
   let data;
   try {
     data = JSON.parse(e.postData.contents);
@@ -61,16 +81,22 @@ function doPost(e) {
   }
   
   const action = data.action;
-  if (action === "add") return handleAddVenda(sheet, data);
-  if (action === "update") return handleUpdateVenda(sheet, data);
-  if (action === "delete") return handleDeleteVenda(sheet, data);
-  if (action === "baixarParcela") return handleBaixarParcela(sheet, data);
+  
+  // Vendas
+  if (action === "add") return handleAddVenda(sheetVendas, data);
+  if (action === "update") return handleUpdateVenda(sheetVendas, data);
+  if (action === "delete") return handleDeleteGeneric(sheetVendas, data);
+  if (action === "baixarParcela") return handleBaixarParcela(sheetVendas, data);
+  
+  // Estoque
+  if (action === "addEstoque") return handleAddEstoque(sheetEstoque, data);
+  if (action === "updateEstoque") return handleUpdateEstoque(sheetEstoque, data);
+  if (action === "deleteEstoque") return handleDeleteGeneric(sheetEstoque, data);
   
   return createResponse({ error: "Ação não reconhecida" });
 }
 
-function handleGetVendas(sheet) {
-  // Otimização: Lê tudo de uma vez para a memória (muito mais rápido que ler célula por célula)
+function handleGetGeneric(sheet) {
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return createResponse([]);
   
@@ -79,7 +105,7 @@ function handleGetVendas(sheet) {
     const obj = {};
     headers.forEach((h, i) => {
       let val = row[i];
-      if (val instanceof Date) val = Utilities.formatDate(val, "GMT-3", "dd/MM/yyyy");
+      if (val instanceof Date) val = Utilities.formatDate(val, "GMT-3", "yyyy-MM-dd");
       obj[h] = val;
     });
     obj.linhaNumero = index + 2; 
@@ -93,7 +119,6 @@ function handleAddVenda(sheet, data) {
   const valorTotal = parseFloat(data.valor) || 0;
   const forma = data.formaPagamento || "Dinheiro";
   const tipoC = data.tipoCartao || "";
-  
   const isVista = forma === "Dinheiro" || forma === "Pix" || (forma === "Cartão" && tipoC === "Débito");
   
   const row = [
@@ -118,6 +143,20 @@ function handleAddVenda(sheet, data) {
   return createResponse({ success: true });
 }
 
+function handleAddEstoque(sheet, data) {
+  const row = [
+    data.dataCompra || Utilities.formatDate(new Date(), "GMT-3", "yyyy-MM-dd"),
+    String(data.nomeProduto || "").toUpperCase(),
+    parseInt(data.quantidade) || 0,
+    parseFloat(data.valorCompra) || 0,
+    data.status || "em_estoque",
+    data.origem || "Manual",
+    data.comprovanteUrl || ""
+  ];
+  sheet.appendRow(row);
+  return createResponse({ success: true });
+}
+
 function handleUpdateVenda(sheet, data) {
   const rowNum = parseInt(data.linhaNumero);
   if (!rowNum || rowNum < 2) return createResponse({ error: "ID inválido" });
@@ -126,7 +165,6 @@ function handleUpdateVenda(sheet, data) {
   const range = sheet.getRange(rowNum, 1, 1, headers.length);
   const values = range.getValues()[0];
   
-  // Otimização: Atualiza o array em memória e grava de uma vez só no disco (1 chamada vs N chamadas)
   for (let key in data) {
     const idx = headers.indexOf(key);
     if (idx !== -1 && key !== "linhaNumero" && key !== "action") {
@@ -136,15 +174,32 @@ function handleUpdateVenda(sheet, data) {
     }
   }
   
-  // Recalcula campos calculados
   const vIdx = headers.indexOf("valor");
   const vpIdx = headers.indexOf("valorPago");
   const vrIdx = headers.indexOf("valorRestante");
-  
   if (vIdx !== -1 && vpIdx !== -1 && vrIdx !== -1) {
     const vTotal = parseFloat(values[vIdx]) || 0;
     const vPago = parseFloat(values[vpIdx]) || 0;
     values[vrIdx] = vTotal - vPago;
+  }
+  
+  range.setValues([values]);
+  return createResponse({ success: true });
+}
+
+function handleUpdateEstoque(sheet, data) {
+  const rowNum = parseInt(data.linhaNumero);
+  if (!rowNum || rowNum < 2) return createResponse({ error: "ID inválido" });
+  
+  const headers = getHeaders(sheet);
+  const range = sheet.getRange(rowNum, 1, 1, headers.length);
+  const values = range.getValues()[0];
+  
+  for (let key in data) {
+    const idx = headers.indexOf(key);
+    if (idx !== -1 && key !== "linhaNumero" && key !== "action") {
+      values[idx] = data[key];
+    }
   }
   
   range.setValues([values]);
@@ -185,7 +240,7 @@ function handleBaixarParcela(sheet, data) {
   return createResponse({ error: "Já quitado" });
 }
 
-function handleDeleteVenda(sheet, data) {
+function handleDeleteGeneric(sheet, data) {
   const rowNum = parseInt(data.linhaNumero);
   if (rowNum >= 2) sheet.deleteRow(rowNum);
   return createResponse({ success: true });

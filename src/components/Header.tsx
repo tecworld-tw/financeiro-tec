@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import logo from "@/assets/logo-tecworld.png";
-import { BarChart3, ShoppingCart, Bell } from "lucide-react";
+import { BarChart3, ShoppingCart, Bell, Package } from "lucide-react";
 import { Notificacao } from "@/lib/types";
 
 interface HeaderProps {
@@ -10,7 +10,7 @@ interface HeaderProps {
 
 export function Header({ notificacoes = [], onNotificacoesClick }: HeaderProps) {
   const location = useLocation();
-  const isDashboard = location.pathname === "/dashboard";
+  const path = location.pathname;
   const urgentes = notificacoes.filter((n) => n.tipo === "vencido" || n.tipo === "vence-hoje");
 
   return (
@@ -34,8 +34,9 @@ export function Header({ notificacoes = [], onNotificacoesClick }: HeaderProps) 
 
         <div className="flex items-center gap-3">
           <nav className="hidden md:flex items-center gap-1 mr-4 border-r border-border/50 pr-4">
-            <NavLink to="/" active={!isDashboard}>Vendas</NavLink>
-            <NavLink to="/dashboard" active={isDashboard}>Dashboard</NavLink>
+            <NavLink to="/" active={path === "/"}>Vendas</NavLink>
+            <NavLink to="/dashboard" active={path === "/dashboard"}>Dashboard</NavLink>
+            <NavLink to="/estoque" active={path === "/estoque"}>Estoque</NavLink>
           </nav>
 
           {onNotificacoesClick && (
@@ -52,12 +53,20 @@ export function Header({ notificacoes = [], onNotificacoesClick }: HeaderProps) 
             </button>
           )}
 
-          <Link
-            to={isDashboard ? "/" : "/dashboard"}
-            className="md:hidden flex items-center gap-2 rounded-xl bg-secondary px-4 py-3 text-sm font-black text-foreground transition-all active:scale-[0.97]"
-          >
-            {isDashboard ? <ShoppingCart className="h-5 w-5" /> : <BarChart3 className="h-5 w-5" />}
-          </Link>
+          <div className="md:hidden flex gap-2">
+            <Link
+              to="/estoque"
+              className={`rounded-xl p-3 text-sm font-black transition-all ${path === "/estoque" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
+            >
+              <Package className="h-5 w-5" />
+            </Link>
+            <Link
+              to="/dashboard"
+              className={`rounded-xl p-3 text-sm font-black transition-all ${path === "/dashboard" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
+            >
+              <BarChart3 className="h-5 w-5" />
+            </Link>
+          </div>
         </div>
       </div>
     </header>
