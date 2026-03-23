@@ -41,6 +41,8 @@ export interface ItemEstoque {
   status: "em_estoque" | "esgotado";
   origem: string; // Ex: AliExpress, Manual, etc.
   comprovanteUrl?: string;
+  imagemUrl?: string;
+  precoVenda?: number;
 }
 
 export type FiltroEstoque = "todos" | "disponivel" | "esgotado";

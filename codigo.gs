@@ -48,7 +48,7 @@ function setup() {
   // Setup Estoque
   let sheetEstoque = ss.getSheetByName(SHEET_ESTOQUE);
   const headersEstoque = [
-    "dataCompra", "nomeProduto", "quantidade", "valorCompra", "status", "origem", "comprovanteUrl"
+    "dataCompra", "nomeProduto", "quantidade", "valorCompra", "status", "origem", "comprovanteUrl", "imagemUrl", "kuantidadeDestaque"
   ];
   if (!sheetEstoque) {
     sheetEstoque = ss.insertSheet(SHEET_ESTOQUE);
@@ -56,6 +56,12 @@ function setup() {
     sheetEstoque.setFrozenRows(1);
     sheetEstoque.getRange("D:D").setNumberFormat("R$ #,##0.00");
     sheetEstoque.getRange("A:A").setNumberFormat("dd/MM/yyyy");
+  } else {
+    const currentHeaders = getHeaders(sheetEstoque);
+    if (!currentHeaders.includes("imagemUrl")) {
+      sheetEstoque.getRange(1, currentHeaders.length + 1).setValue("imagemUrl");
+      cachedHeaders[SHEET_ESTOQUE] = null;
+    }
   }
 
   return { ss, sheetVendas, sheetEstoque };
@@ -66,9 +72,38 @@ function doGet(e) {
   const action = e.parameter.action;
   
   if (action === "getVendas") return handleGetGeneric(sheetVendas);
-  if (action === "getEstoque") return handleGetGeneric(sheetEstoque);
+  if (action === "getEstoque") return handleGetEstoque(sheetEstoque);
   
   return createResponse({ error: "Ação inválida" });
+}
+
+function handleGetEstoque(sheet) {
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return createResponse([]);
+  
+  const headers = data[0];
+  const result = data.slice(1).map((row, index) => {
+    const obj = {};
+    headers.forEach((h, i) => {
+      let val = row[i];
+      if (val instanceof Date) val = Utilities.formatDate(val, "GMT-3", "yyyy-MM-dd");
+      obj[h] = val;
+    });
+
+    const valorCompra = parseFloat(obj["valorCompra"]) || 0;
+    let precoVenda = 0;
+    if (valorCompra > 0) {
+      if (valorCompra < 100) precoVenda = valorCompra * 2.0;
+      else if (valorCompra <= 150) precoVenda = valorCompra * 1.8;
+      else precoVenda = valorCompra * 1.5;
+    }
+
+    obj.precoVenda = precoVenda;
+    obj.linhaNumero = index + 2;
+    return obj;
+  });
+  
+  return createResponse(result);
 }
 
 function doPost(e) {
@@ -169,15 +204,27 @@ function handleAddVenda(sheet, sheetEstoque, data) {
 }
 
 function handleAddEstoque(sheet, data) {
-  const row = [
-    data.dataCompra || Utilities.formatDate(new Date(), "GMT-3", "yyyy-MM-dd"),
-    String(data.nomeProduto || "").toUpperCase(),
-    parseInt(data.quantidade) || 0,
-    parseFloat(data.valorCompra) || 0,
-    data.status || "em_estoque",
-    data.origem || "Manual",
-    data.comprovanteUrl || ""
-  ];
+  const headers = getHeaders(sheet);
+  const row = Array(headers.length).fill("");
+
+  const idxDataCompra = headers.indexOf("dataCompra");
+  const idxNomeProduto = headers.indexOf("nomeProduto");
+  const idxQuantidade = headers.indexOf("quantidade");
+  const idxValorCompra = headers.indexOf("valorCompra");
+  const idxStatus = headers.indexOf("status");
+  const idxOrigem = headers.indexOf("origem");
+  const idxComprovanteUrl = headers.indexOf("comprovanteUrl");
+  const idxImagemUrl = headers.indexOf("imagemUrl");
+
+  if (idxDataCompra !== -1) row[idxDataCompra] = data.dataCompra || Utilities.formatDate(new Date(), "GMT-3", "yyyy-MM-dd");
+  if (idxNomeProduto !== -1) row[idxNomeProduto] = String(data.nomeProduto || "").toUpperCase();
+  if (idxQuantidade !== -1) row[idxQuantidade] = parseInt(data.quantidade) || 0;
+  if (idxValorCompra !== -1) row[idxValorCompra] = parseFloat(data.valorCompra) || 0;
+  if (idxStatus !== -1) row[idxStatus] = data.status || "em_estoque";
+  if (idxOrigem !== -1) row[idxOrigem] = data.origem || "Manual";
+  if (idxComprovanteUrl !== -1) row[idxComprovanteUrl] = data.comprovanteUrl || "";
+  if (idxImagemUrl !== -1) row[idxImagemUrl] = data.imagemUrl || "";
+
   sheet.appendRow(row);
   return createResponse({ success: true });
 }

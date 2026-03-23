@@ -19,8 +19,19 @@ const emptyForm: Omit<ItemEstoque, "id"> = {
   quantidade: 1,
   valorCompra: 0,
   status: "em_estoque",
-  origem: "Manual"
+  origem: "Manual",
+  imagemUrl: ""
 };
+
+function normalizeImagemUrl(input: string): string {
+  const value = input.trim();
+  if (!value) return "";
+  const srcMatch = value.match(/src\s*=\s*["'`]\s*([^"'`>]+)\s*["'`]/i);
+  if (srcMatch?.[1]) return srcMatch[1].trim();
+  const urlMatch = value.match(/https?:\/\/[^\s"'`>]+/i);
+  if (urlMatch?.[0]) return urlMatch[0].trim();
+  return value;
+}
 
 export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps) {
   const [form, setForm] = useState(emptyForm);
@@ -34,7 +45,8 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
         valorCompra: item.valorCompra,
         status: item.status,
         origem: item.origem,
-        comprovanteUrl: item.comprovanteUrl
+        comprovanteUrl: item.comprovanteUrl,
+        imagemUrl: item.imagemUrl || ""
       });
     } else {
       setForm({ ...emptyForm, dataCompra: new Date().toISOString().split("T")[0] });
@@ -47,7 +59,7 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
       toast.error("Preencha o nome do produto");
       return;
     }
-    onSave(form);
+    onSave({ ...form, imagemUrl: normalizeImagemUrl(form.imagemUrl || "") });
     onClose();
   };
 
@@ -64,6 +76,16 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
               onChange={(e) => set("nomeProduto", e.target.value.toUpperCase())}
               className="input-field h-12 text-sm font-bold"
               placeholder="NOME DO PRODUTO"
+            />
+          </Field>
+
+          <Field label="Link da Imagem">
+            <input
+              type="text"
+              value={form.imagemUrl || ""}
+              onChange={(e) => set("imagemUrl", normalizeImagemUrl(e.target.value))}
+              className="input-field h-12 text-sm font-bold"
+              placeholder='https://... ou <img src="...">'
             />
           </Field>
 

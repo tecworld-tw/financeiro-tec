@@ -24,6 +24,7 @@ const Estoque = () => {
   const [notifsOpen,   setNotifsOpen]   = useState(false);
   const [modalOpen,    setModalOpen]    = useState(false);
   const [editingItem,  setEditingItem]  = useState<ItemEstoque | null>(null);
+  const [pendingOcrItems, setPendingOcrItems] = useState<Omit<ItemEstoque, "id">[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<ItemEstoque | null>(null);
   const [parsing,      setParsing]      = useState(false);
 
@@ -58,13 +59,27 @@ const Estoque = () => {
 
   const handleSave = async (data: Omit<ItemEstoque, "id">) => {
     try {
-      if (editingItem) {
+      const isEdicao = !!editingItem?.id;
+      if (isEdicao) {
         await updateEstoque(editingItem.id, data);
         toast.success("Item atualizado!");
       } else {
         await addEstoque(data);
         toast.success("Item adicionado ao estoque!");
       }
+
+      if (!isEdicao && pendingOcrItems.length > 0) {
+        const [, ...restantes] = pendingOcrItems;
+        if (restantes.length > 0) {
+          setPendingOcrItems(restantes);
+          setEditingItem({ id: "", ...restantes[0] } as ItemEstoque);
+          toast.info(`Confirme o próximo item (${restantes.length} restante(s))`);
+          return;
+        }
+        setPendingOcrItems([]);
+      }
+
+      setEditingItem(null);
       setModalOpen(false);
       reload(true);
     } catch {
@@ -103,11 +118,21 @@ const Estoque = () => {
     try {
       const results = await parseAliExpressReceipt(file);
       if (results.length > 0) {
-        for (const item of results) {
-          await addEstoque(item as Omit<ItemEstoque, "id">);
-        }
-        toast.success(`${results.length} item(ns) lançados automaticamente!`);
-        reload(true);
+        const itensConfirmacao: Omit<ItemEstoque, "id">[] = results.map((item) => ({
+          dataCompra: item.dataCompra || new Date().toISOString().split("T")[0],
+          nomeProduto: String(item.nomeProduto || "").toUpperCase(),
+          quantidade: Number(item.quantidade) || 1,
+          valorCompra: Number(item.valorCompra) || 0,
+          status: (item.status as ItemEstoque["status"]) || "em_estoque",
+          origem: item.origem || "AliExpress",
+          comprovanteUrl: item.comprovanteUrl || "",
+          imagemUrl: item.imagemUrl || "",
+        }));
+
+        setPendingOcrItems(itensConfirmacao);
+        setEditingItem({ id: "", ...itensConfirmacao[0] } as ItemEstoque);
+        setModalOpen(true);
+        toast.success(`${itensConfirmacao.length} item(ns) lido(s)! Confirme no cadastro para enviar.`);
       } else {
         toast.error("Não foi possível identificar itens no comprovante.");
       }
@@ -120,8 +145,16 @@ const Estoque = () => {
     }
   };
 
-  const openAdd  = () => { setEditingItem(null);  setModalOpen(true); };
-  const openEdit = (item: ItemEstoque) => { setEditingItem(item); setModalOpen(true); };
+  const openAdd  = () => {
+    setPendingOcrItems([]);
+    setEditingItem(null);
+    setModalOpen(true);
+  };
+  const openEdit = (item: ItemEstoque) => {
+    setPendingOcrItems([]);
+    setEditingItem(item);
+    setModalOpen(true);
+  };
 
   return (
     // ✅ Mesma estrutura raiz do Index: min-h-screen + selection
@@ -263,7 +296,11 @@ const Estoque = () => {
       <EstoqueModal
         open={modalOpen}
         item={editingItem}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setEditingItem(null);
+          setPendingOcrItems([]);
+        }}
         onSave={handleSave}
       />
 

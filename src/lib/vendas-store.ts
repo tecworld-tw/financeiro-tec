@@ -40,6 +40,16 @@ function parseNumber(val: any): number {
   return Number(s) || 0;
 }
 
+function parseImagemUrl(val: unknown): string {
+  if (!val) return "";
+  const input = String(val).trim();
+  const srcMatch = input.match(/src\s*=\s*["'`]\s*([^"'`>]+)\s*["'`]/i);
+  if (srcMatch?.[1]) return srcMatch[1].trim();
+  const urlMatch = input.match(/https?:\/\/[^\s"'`>]+/i);
+  if (urlMatch?.[0]) return urlMatch[0].trim();
+  return input;
+}
+
 function mapToFrontend(v: any): Venda {
   try {
     return {
@@ -85,7 +95,9 @@ function mapEstoqueToFrontend(v: any): ItemEstoque {
     valorCompra: parseNumber(v.valorCompra),
     status: v.status || "em_estoque",
     origem: v.origem || "Manual",
-    comprovanteUrl: v.comprovanteUrl || ""
+    comprovanteUrl: v.comprovanteUrl || "",
+    imagemUrl: parseImagemUrl(v.imagemUrl),
+    precoVenda: parseNumber(v.precoVenda)
   };
 }
 
@@ -200,10 +212,15 @@ export const baixarParcela = async (id: string) =>
 
 // Estoque CRUD
 export const addEstoque = async (item: Omit<ItemEstoque, "id">) => 
-  gasPost({ action: "addEstoque", ...item });
+  gasPost({ action: "addEstoque", ...item, imagemUrl: parseImagemUrl(item.imagemUrl) });
 
 export const updateEstoque = async (id: string, data: Partial<ItemEstoque>) => 
-  gasPost({ action: "updateEstoque", linhaNumero: parseInt(id), ...data });
+  gasPost({
+    action: "updateEstoque",
+    linhaNumero: parseInt(id),
+    ...data,
+    imagemUrl: data.imagemUrl !== undefined ? parseImagemUrl(data.imagemUrl) : undefined,
+  });
 
 export const deleteEstoque = async (id: string) => 
   gasPost({ action: "deleteEstoque", linhaNumero: parseInt(id) });
