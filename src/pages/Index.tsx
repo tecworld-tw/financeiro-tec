@@ -32,7 +32,7 @@ export default function Index() {
       const data = await getVendas();
       setVendas(data);
     } catch (error) {
-      toast.error("Erro ao carregar dados da planilha");
+      toast.error("Erro ao carregar dados do Firebase");
       console.error(error);
     } finally {
       setLoading(false);

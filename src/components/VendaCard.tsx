@@ -20,6 +20,8 @@ interface VendaCardProps {
 export const VendaCard = memo(function VendaCard({ venda, onEdit, onDelete, onTogglePago, onBaixarParcela, delay = 0 }: VendaCardProps) {
   const vencida = isVencida(venda);
   const [loadingBaixa, setLoadingBaixa] = useState(false);
+  const dataReferencia = venda.formaPagamento === "Promissória" && venda.vencimento ? venda.vencimento : venda.dataVenda;
+  const labelData = venda.formaPagamento === "Promissória" && venda.vencimento ? "Venc." : "Venda";
 
   const getPaymentIcon = () => {
     switch (venda.formaPagamento) {
@@ -168,9 +170,9 @@ export const VendaCard = memo(function VendaCard({ venda, onEdit, onDelete, onTo
       </CardContent>
 
       <CardFooter className="p-4 pt-2 flex items-center justify-between border-t border-border/40 bg-muted/5 mt-auto">
-        <div className="flex items-center gap-1.5 text-[9px] font-black text-muted-foreground/60 uppercase tracking-tighter">
+        <div className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-tighter ${vencida && !venda.pago ? "text-destructive" : "text-muted-foreground/60"}`}>
           <Clock className="h-3 w-3 opacity-50" />
-          {formatDate(venda.dataVenda)}
+          {labelData}: {formatDate(dataReferencia)}
         </div>
         <div className="flex items-center gap-1.5">
           <div className="flex bg-background/50 rounded-lg p-0.5 border border-border/30">

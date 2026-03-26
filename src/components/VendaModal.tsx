@@ -30,6 +30,31 @@ const emptyForm: Omit<Venda, "id"> = {
   valorRestante: 0,
 };
 
+function toDateInputValue(value: string): string {
+  const v = String(value || "").trim();
+  const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return v;
+  const br = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  return v;
+}
+
+function toIsoDate(value: string): string {
+  const v = String(value || "").trim();
+  const br = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
+  return v;
+}
+
+function toBrDisplayDate(value: string): string {
+  const v = String(value || "").trim();
+  const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const br = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (br) return `${br[1].padStart(2, "0")}/${br[2].padStart(2, "0")}/${br[3]}`;
+  return "";
+}
+
 export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
   const [form, setForm] = useState(emptyForm);
   const [estoque, setEstoque] = useState<ItemEstoque[]>([]);
@@ -52,7 +77,7 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
         quantidade: venda.quantidade,
         descricao: venda.descricao,
         fiado: venda.fiado,
-        vencimento: venda.vencimento,
+        vencimento: toDateInputValue(venda.vencimento),
         pago: venda.pago,
         formaPagamento: venda.formaPagamento || "Dinheiro",
         tipoCartao: venda.tipoCartao || "",
@@ -87,7 +112,8 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
       toast.error("Valor deve ser maior que zero");
       return;
     }
-    onSave(form);
+    const payload = { ...form, vencimento: toIsoDate(form.vencimento) };
+    onSave(payload);
     onClose();
   };
 
@@ -339,13 +365,21 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
               </div>
             </Field>
             <Field label="Data de Vencimento">
-              <input
-                type="date"
-                required
-                value={form.vencimento}
-                onChange={(e) => set("vencimento", e.target.value)}
-                className="input-field h-12 font-bold"
-              />
+              <div className="space-y-1.5">
+                <input
+                  type="date"
+                  required
+                  lang="pt-BR"
+                  value={form.vencimento}
+                  onChange={(e) => set("vencimento", e.target.value)}
+                  className="input-field h-12 font-bold"
+                />
+                {!!form.vencimento && (
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                    Selecionada: {toBrDisplayDate(form.vencimento)}
+                  </p>
+                )}
+              </div>
             </Field>
           </div>
         )}
