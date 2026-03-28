@@ -101,9 +101,20 @@ const Estoque = () => {
 
   const handleToggleStatus = async (item: ItemEstoque) => {
     try {
-      const newStatus = item.status === "em_estoque" ? "esgotado" : "em_estoque";
+      let newStatus: ItemEstoque["status"];
+      if (item.status === "em_estoque") {
+        newStatus = "esgotado";
+      } else if (item.status === "a_caminho") {
+        newStatus = "em_estoque";
+      } else {
+        newStatus = "em_estoque";
+      }
+      
       await updateEstoque(item.id, { status: newStatus });
-      toast.success(`Status alterado para ${newStatus === "em_estoque" ? "Em Estoque" : "Esgotado"}`);
+      toast.success(`Status alterado para ${
+        newStatus === "em_estoque" ? "Em Estoque" : 
+        newStatus === "a_caminho" ? "A Caminho" : "Esgotado"
+      }`);
       reload(true);
     } catch {
       toast.error("Erro ao alterar status");
@@ -123,7 +134,9 @@ const Estoque = () => {
           nomeProduto: String(item.nomeProduto || "").toUpperCase(),
           quantidade: Number(item.quantidade) || 1,
           valorCompra: Number(item.valorCompra) || 0,
+          precoVenda: Number(item.precoVenda) || 0,
           status: (item.status as ItemEstoque["status"]) || "em_estoque",
+          estoque: "SÃO LUÍS",
           origem: item.origem || "AliExpress",
           comprovanteUrl: item.comprovanteUrl || "",
           imagemUrl: item.imagemUrl || "",

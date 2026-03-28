@@ -38,7 +38,8 @@ export interface ItemEstoque {
   nomeProduto: string;
   quantidade: number;
   valorCompra: number;
-  status: "em_estoque" | "esgotado";
+  status: "em_estoque" | "esgotado" | "a_caminho";
+  estoque: "SÃO LUÍS" | "PARNAIBA";
   origem: string; // Ex: AliExpress, Manual, etc.
   comprovanteUrl?: string;
   imagemUrl?: string;

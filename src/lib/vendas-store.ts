@@ -124,6 +124,7 @@ function mapEstoqueToFrontend(v: any): ItemEstoque {
     quantidade: parseNumber(v.quantidade),
     valorCompra: parseNumber(valorBase),
     status: v.status || "em_estoque",
+    estoque: v.estoque || "SÃO LUÍS",
     origem: v.origem || v.categoria || "Manual",
     comprovanteUrl: v.comprovanteUrl || "",
     imagemUrl: parseImagemUrl(v.imagemUrl),
@@ -324,6 +325,7 @@ export const addEstoque = async (item: Omit<ItemEstoque, "id">) =>
     valorCompra,
     precoVenda,
     status: item.status || "em_estoque",
+    estoque: item.estoque || "SÃO LUÍS",
     origem,
     categoria: origem,
     comprovanteUrl: item.comprovanteUrl || "",
@@ -345,6 +347,7 @@ export const updateEstoque = async (id: string, data: Partial<ItemEstoque>) =>
     if (payload.precoVenda === undefined) payload.precoVenda = calcularSugestaoVenda(payload.valorCompra);
   }
   if (payload.precoVenda !== undefined) payload.precoVenda = parseNumber(payload.precoVenda);
+  if (payload.estoque !== undefined) payload.estoque = String(payload.estoque).trim();
   if (payload.imagemUrl !== undefined) payload.imagemUrl = parseImagemUrl(payload.imagemUrl);
   await updateDoc(doc(db, ESTOQUE_COLLECTION, id), payload);
   invalidateCache();

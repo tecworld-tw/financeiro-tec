@@ -3,7 +3,7 @@ import { ItemEstoque } from "@/lib/types";
 import { BottomSheet } from "./BottomSheet";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
-import { Package, Calendar, DollarSign, Tag, Archive, CheckCircle2, TrendingUp } from "lucide-react";
+import { Package, Calendar, DollarSign, Tag, Archive, CheckCircle2, TrendingUp, Truck, MapPin } from "lucide-react";
 import { formatCurrency, calcularSugestaoVenda } from "@/lib/vendas-store";
 
 interface EstoqueModalProps {
@@ -18,7 +18,9 @@ const emptyForm: Omit<ItemEstoque, "id"> = {
   nomeProduto: "",
   quantidade: 1,
   valorCompra: 0,
+  precoVenda: 0,
   status: "em_estoque",
+  estoque: "SÃO LUÍS",
   origem: "Manual",
   imagemUrl: ""
 };
@@ -43,7 +45,9 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
         nomeProduto: item.nomeProduto,
         quantidade: item.quantidade,
         valorCompra: item.valorCompra,
+        precoVenda: item.precoVenda || 0,
         status: item.status,
+        estoque: item.estoque || "SÃO LUÍS",
         origem: item.origem,
         comprovanteUrl: item.comprovanteUrl,
         imagemUrl: item.imagemUrl || ""
@@ -89,7 +93,7 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Field label="Qtd">
               <input
                 required
@@ -100,7 +104,7 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
                 className="input-field h-12 text-sm font-black"
               />
             </Field>
-            <Field label="Valor Compra (un)">
+            <Field label="Vlr Compra">
               <input
                 required
                 type="number"
@@ -109,6 +113,18 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
                 value={form.valorCompra || ""}
                 onChange={(e) => set("valorCompra", parseFloat(e.target.value) || 0)}
                 className="input-field h-12 text-sm font-black tabular-nums"
+                placeholder="0,00"
+              />
+            </Field>
+            <Field label="Vlr Venda">
+              <input
+                required
+                type="number"
+                step="0.01"
+                min="0"
+                value={form.precoVenda || ""}
+                onChange={(e) => set("precoVenda", parseFloat(e.target.value) || 0)}
+                className="input-field h-12 text-sm font-black tabular-nums text-emerald-600"
                 placeholder="0,00"
               />
             </Field>
@@ -130,7 +146,7 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
               <div className="text-right">
                 <p className="text-[9px] font-black text-emerald-600/40 uppercase tracking-tighter">Lucro Estimado</p>
                 <p className="text-sm font-black text-emerald-500">
-                  +{formatCurrency(calcularSugestaoVenda(form.valorCompra) - form.valorCompra)}
+                  +{formatCurrency((form.precoVenda || calcularSugestaoVenda(form.valorCompra)) - form.valorCompra)}
                 </p>
               </div>
             </div>
@@ -160,25 +176,57 @@ export function EstoqueModal({ open, item, onClose, onSave }: EstoqueModalProps)
             </Field>
           </div>
 
-          <Field label="Status">
+          <Field label="Localização do Estoque">
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => set("status", "em_estoque")}
-                className={`flex items-center justify-center gap-2 h-12 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all ${
-                  form.status === "em_estoque" ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                onClick={() => set("estoque", "SÃO LUÍS")}
+                className={`flex items-center justify-center gap-2 h-12 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                  form.estoque === "SÃO LUÍS" ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border-border bg-card text-muted-foreground hover:bg-secondary"
                 }`}
               >
-                <CheckCircle2 className="h-4 w-4" /> Em Estoque
+                <MapPin className="h-4 w-4" /> SÃO LUÍS
+              </button>
+              <button
+                type="button"
+                onClick={() => set("estoque", "PARNAIBA")}
+                className={`flex items-center justify-center gap-2 h-12 rounded-2xl border text-[10px] font-black uppercase tracking-widest transition-all ${
+                  form.estoque === "PARNAIBA" ? "border-primary bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <MapPin className="h-4 w-4" /> PARNAIBA
+              </button>
+            </div>
+          </Field>
+
+          <Field label="Status">
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => set("status", "em_estoque")}
+                className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl border text-[9px] font-black uppercase tracking-tighter transition-all ${
+                  form.status === "em_estoque" ? "border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <CheckCircle2 className="h-4 w-4" /> <span>Em Estoque</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => set("status", "a_caminho")}
+                className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl border text-[9px] font-black uppercase tracking-tighter transition-all ${
+                  form.status === "a_caminho" ? "border-amber-500 bg-amber-500 text-white shadow-lg shadow-amber-500/20" : "border-border bg-card text-muted-foreground hover:bg-secondary"
+                }`}
+              >
+                <Truck className="h-4 w-4" /> <span>A Caminho</span>
               </button>
               <button
                 type="button"
                 onClick={() => set("status", "esgotado")}
-                className={`flex items-center justify-center gap-2 h-12 rounded-2xl border text-xs font-black uppercase tracking-widest transition-all ${
+                className={`flex flex-col items-center justify-center gap-1 h-14 rounded-2xl border text-[9px] font-black uppercase tracking-tighter transition-all ${
                   form.status === "esgotado" ? "border-destructive bg-destructive text-destructive-foreground shadow-lg shadow-destructive/20" : "border-border bg-card text-muted-foreground hover:bg-secondary"
                 }`}
               >
-                <Archive className="h-4 w-4" /> Esgotado
+                <Archive className="h-4 w-4" /> <span>Esgotado</span>
               </button>
             </div>
           </Field>

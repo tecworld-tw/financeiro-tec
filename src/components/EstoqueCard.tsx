@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { ItemEstoque } from "@/lib/types";
 import { formatCurrency, formatDate, calcularSugestaoVenda } from "@/lib/vendas-store";
-import { Edit2, Trash2, Package, Calendar, DollarSign, Tag, Archive, CheckCircle2, TrendingUp } from "lucide-react";
+import { Edit2, Trash2, Package, Calendar, DollarSign, Tag, Archive, CheckCircle2, TrendingUp, Truck, MapPin } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ interface EstoqueCardProps {
 
 export const EstoqueCard = memo(function EstoqueCard({ item, onEdit, onDelete, onToggleStatus, delay = 0 }: EstoqueCardProps) {
   const isEsgotado = item.status === "esgotado";
+  const isACaminho = item.status === "a_caminho";
 
   return (
     <Card 
@@ -26,8 +27,12 @@ export const EstoqueCard = memo(function EstoqueCard({ item, onEdit, onDelete, o
         <div className="flex items-start justify-between gap-2">
           <div className="space-y-1.5 min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <div className={`p-1.5 rounded-full transition-colors shrink-0 ${isEsgotado ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary group-hover/card:bg-primary group-hover/card:text-primary-foreground"}`}>
-                <Package className="h-3.5 w-3.5" />
+              <div className={`p-1.5 rounded-full transition-colors shrink-0 ${
+                isEsgotado ? "bg-muted text-muted-foreground" : 
+                isACaminho ? "bg-amber-500/10 text-amber-500" :
+                "bg-primary/10 text-primary group-hover/card:bg-primary group-hover/card:text-primary-foreground"
+              }`}>
+                {isACaminho ? <Truck className="h-3.5 w-3.5" /> : <Package className="h-3.5 w-3.5" />}
               </div>
               <h3 className="font-extrabold text-foreground text-base truncate tracking-tight uppercase">{item.nomeProduto}</h3>
             </div>
@@ -36,13 +41,20 @@ export const EstoqueCard = memo(function EstoqueCard({ item, onEdit, onDelete, o
                 <Tag className="h-3 w-3" />
                 <span>{item.origem}</span>
               </div>
+              <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-primary bg-primary/5 px-2 py-0.5 rounded-md border border-primary/10">
+                <MapPin className="h-3 w-3" />
+                <span>{item.estoque || "SÃO LUÍS"}</span>
+              </div>
             </div>
           </div>
           <Badge 
-            variant={isEsgotado ? "destructive" : "default"}
-            className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest shadow-sm shrink-0 ${!isEsgotado ? "bg-emerald-500 text-white border-none" : ""}`}
+            variant={isEsgotado ? "destructive" : isACaminho ? "secondary" : "default"}
+            className={`px-2 py-0.5 text-[9px] font-black uppercase tracking-widest shadow-sm shrink-0 ${
+              !isEsgotado && !isACaminho ? "bg-emerald-500 text-white border-none" : 
+              isACaminho ? "bg-amber-500 text-white border-none" : ""
+            }`}
           >
-            {isEsgotado ? "Esgotado" : "Em Estoque"}
+            {isEsgotado ? "Esgotado" : isACaminho ? "A Caminho" : "Em Estoque"}
           </Badge>
         </div>
       </CardHeader>
@@ -59,16 +71,20 @@ export const EstoqueCard = memo(function EstoqueCard({ item, onEdit, onDelete, o
           </div>
         </div>
 
-        {/* Preço Sugerido - Lógica Senior */}
-        <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 flex items-center justify-between">
+        {/* Preço de Venda */}
+        <div className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
+          item.precoVenda ? "bg-emerald-500/10 border-emerald-500/20" : "bg-emerald-500/5 border-emerald-500/10"
+        }`}>
           <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
-              <TrendingUp className="h-3 w-3" />
+            <div className={`p-1.5 rounded-lg ${item.precoVenda ? "bg-emerald-500/20 text-emerald-600" : "bg-emerald-500/10 text-emerald-500"}`}>
+              <DollarSign className="h-3 w-3" />
             </div>
-            <span className="text-[9px] font-black text-emerald-600/80 uppercase tracking-widest">Sugestão de Venda</span>
+            <span className={`text-[9px] font-black uppercase tracking-widest ${item.precoVenda ? "text-emerald-700" : "text-emerald-600/80"}`}>
+              {item.precoVenda ? "Valor da Venda" : "Sugestão de Venda"}
+            </span>
           </div>
-          <span className="text-sm font-black text-emerald-600 tabular-nums">
-            {formatCurrency(calcularSugestaoVenda(item.valorCompra))}
+          <span className={`text-sm font-black tabular-nums ${item.precoVenda ? "text-emerald-700" : "text-emerald-600"}`}>
+            {formatCurrency(item.precoVenda || calcularSugestaoVenda(item.valorCompra))}
           </span>
         </div>
 
@@ -102,10 +118,14 @@ export const EstoqueCard = memo(function EstoqueCard({ item, onEdit, onDelete, o
         <Button
           variant="outline"
           size="sm"
-          className={`h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${isEsgotado ? "border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10" : "border-destructive/30 text-destructive hover:bg-destructive/10"}`}
+          className={`h-8 px-3 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+            isEsgotado ? "border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10" : 
+            isACaminho ? "border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/10" :
+            "border-destructive/30 text-destructive hover:bg-destructive/10"
+          }`}
           onClick={() => onToggleStatus(item)}
         >
-          {isEsgotado ? "Repor Estoque" : "Marcar Esgotado"}
+          {isEsgotado ? "Repor Estoque" : isACaminho ? "Chegou" : "Marcar Esgotado"}
         </Button>
       </CardFooter>
     </Card>
