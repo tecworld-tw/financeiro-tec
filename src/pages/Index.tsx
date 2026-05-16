@@ -89,8 +89,10 @@ export default function Index() {
       }
       setModalOpen(false);
       setTimeout(reload, 1000);
-    } catch (error) {
-      toast.error("Erro ao salvar venda");
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      toast.error(`Erro ao salvar venda: ${msg}`);
+      console.error("[Firebase] addVenda/updateVenda:", error);
     }
   };
 

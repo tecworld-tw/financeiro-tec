@@ -32,6 +32,12 @@ export interface Notificacao {
 
 export type FiltroStatus = "todos" | "pago" | "nao-pago" | "vencido" | "fiado";
 
+export interface Cliente {
+  id: string;
+  nome: string;
+  telefone: string;
+}
+
 export interface ItemEstoque {
   id: string;
   dataCompra: string;

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Venda, ItemEstoque } from "@/lib/types";
+import { Venda, ItemEstoque, Cliente } from "@/lib/types";
 import { BottomSheet } from "./BottomSheet";
 import { toast } from "sonner";
-import { CreditCard, Banknote, Landmark, Receipt, Package, Search } from "lucide-react";
+import { CreditCard, Banknote, Landmark, Receipt, Package, Search, User } from "lucide-react";
 import { getEstoque, calcularSugestaoVenda } from "@/lib/vendas-store";
+import { getClientes } from "@/lib/clientes-store";
 
 interface VendaModalProps {
   open: boolean;
@@ -61,9 +62,14 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
   const [search, setSearch] = useState("");
   const [showEstoque, setShowEstoque] = useState(false);
 
+  const [clientes, setClientes]             = useState<Cliente[]>([]);
+  const [clienteSearch, setClienteSearch]   = useState("");
+  const [showClientes, setShowClientes]     = useState(false);
+
   useEffect(() => {
     if (open) {
       getEstoque().then(setEstoque);
+      getClientes().then(setClientes);
     }
   }, [open]);
 
@@ -129,15 +135,63 @@ export function VendaModal({ open, venda, onClose, onSave }: VendaModalProps) {
     <BottomSheet open={open} onClose={onClose} title={venda ? "Editar Venda" : "Nova Venda"}>
       <form onSubmit={handleSubmit} className="space-y-6 max-h-[75vh] overflow-y-auto no-scrollbar px-1 pb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <Field label="Cliente">
-            <input
-              required
-              value={form.nomeCliente}
-              onChange={(e) => set("nomeCliente", e.target.value.toUpperCase())}
-              className="input-field h-12 text-sm font-bold"
-              placeholder="NOME DO CLIENTE"
-            />
-          </Field>
+          {/* ── campo cliente com autocomplete ── */}
+          <div className="relative">
+            <Field label="Cliente">
+              <div className="relative flex items-center">
+                <input
+                  required
+                  value={form.nomeCliente}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    set("nomeCliente", val);
+                    setClienteSearch(val);
+                    setShowClientes(true);
+                  }}
+                  onFocus={() => { setClienteSearch(form.nomeCliente); setShowClientes(true); }}
+                  onBlur={() => setTimeout(() => setShowClientes(false), 150)}
+                  className="input-field h-12 text-sm font-bold pr-10 w-full"
+                  placeholder="NOME DO CLIENTE"
+                />
+                <div className="absolute right-3 text-muted-foreground pointer-events-none">
+                  <User className="h-4 w-4" />
+                </div>
+              </div>
+            </Field>
+
+            {showClientes && (() => {
+              const q = clienteSearch.trim().toLowerCase();
+              const filtered = clientes.filter((c) =>
+                !q || c.nome.toLowerCase().includes(q) || c.telefone.includes(q)
+              );
+              if (!filtered.length) return null;
+              return (
+                <div className="absolute z-50 w-full mt-2 max-h-52 overflow-y-auto rounded-2xl border border-border bg-card shadow-2xl animate-in fade-in slide-in-from-top-2">
+                  {filtered.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onMouseDown={() => {
+                        set("nomeCliente", c.nome);
+                        set("contato", c.telefone);
+                        setShowClientes(false);
+                        toast.success(`Cliente: ${c.nome}`);
+                      }}
+                      className="w-full flex items-center gap-3 p-3.5 hover:bg-primary/5 border-b border-border/50 last:border-0 transition-colors text-left"
+                    >
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary font-black text-xs shrink-0">
+                        {c.nome.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-tight">{c.nome}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium">{c.telefone || "—"}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
 
           <div className="relative">
             <Field label="Produto do Estoque">

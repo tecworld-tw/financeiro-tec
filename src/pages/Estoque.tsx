@@ -82,8 +82,10 @@ const Estoque = () => {
       setEditingItem(null);
       setModalOpen(false);
       reload(true);
-    } catch {
-      toast.error("Erro ao salvar item");
+    } catch (error: any) {
+      const msg = error?.message || String(error);
+      toast.error(`Erro ao salvar item: ${msg}`);
+      console.error("[Firebase] addEstoque/updateEstoque:", error);
     }
   };
 

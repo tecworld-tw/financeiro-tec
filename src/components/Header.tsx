@@ -1,7 +1,8 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import logo from "@/assets/logo-tecworld.png";
-import { BarChart3, ShoppingCart, Bell, Package } from "lucide-react";
+import { BarChart3, Bell, Package, LogOut, Users } from "lucide-react";
 import { Notificacao } from "@/lib/types";
+import { useAuth } from "@/lib/AuthContext";
 
 interface HeaderProps {
   notificacoes?: Notificacao[];
@@ -10,8 +11,15 @@ interface HeaderProps {
 
 export function Header({ notificacoes = [], onNotificacoesClick }: HeaderProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
   const path = location.pathname;
   const urgentes = notificacoes.filter((n) => n.tipo === "vencido" || n.tipo === "vence-hoje");
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/login", { replace: true });
+  };
 
   return (
     <header className="safe-top safe-x sticky top-0 z-40 backdrop-blur-xl bg-background/80 border-b border-border/40">
@@ -37,6 +45,7 @@ export function Header({ notificacoes = [], onNotificacoesClick }: HeaderProps) 
             <NavLink to="/" active={path === "/"}>Vendas</NavLink>
             <NavLink to="/dashboard" active={path === "/dashboard"}>Dashboard</NavLink>
             <NavLink to="/estoque" active={path === "/estoque"}>Estoque</NavLink>
+            <NavLink to="/clientes" active={path === "/clientes"}>Clientes</NavLink>
           </nav>
 
           {onNotificacoesClick && (
@@ -53,7 +62,21 @@ export function Header({ notificacoes = [], onNotificacoesClick }: HeaderProps) 
             </button>
           )}
 
+          <button
+            onClick={handleSignOut}
+            title="Sair"
+            className="rounded-2xl p-3 text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive active:scale-95"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+
           <div className="md:hidden flex gap-2">
+            <Link
+              to="/clientes"
+              className={`rounded-xl p-3 text-sm font-black transition-all ${path === "/clientes" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}
+            >
+              <Users className="h-5 w-5" />
+            </Link>
             <Link
               to="/estoque"
               className={`rounded-xl p-3 text-sm font-black transition-all ${path === "/estoque" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"}`}

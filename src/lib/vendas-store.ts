@@ -153,6 +153,27 @@ function mapVendaToFrontend(v: any, id: string): Venda {
   };
 }
 
+function readLocalBackup<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as T[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalBackup<T>(key: string, data: T[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // Ignora erro de cota/permissoes de storage.
+  }
+}
+
 function todayIsoDate() {
   return new Date().toISOString().split("T")[0];
 }
@@ -163,15 +184,27 @@ export async function getVendas(forceRefresh = false): Promise<Venda[]> {
   if (fetchPromise) return fetchPromise;
 
   fetchPromise = (async () => {
-    const vendasQuery = query(collection(db, VENDAS_COLLECTION), orderBy("dataVenda", "desc"));
-    const snapshot = await getDocs(vendasQuery);
-    const mapped = snapshot.docs.map((d) => mapVendaToFrontend(d.data(), d.id));
-    memoryCache = mapped;
-    lastFetchTime = Date.now();
-    localStorage.setItem("vendas_backup", JSON.stringify(mapped));
-    fetchPromise = null;
-    return mapped;
+    try {
+      const vendasQuery = query(collection(db, VENDAS_COLLECTION), orderBy("dataVenda", "desc"));
+      const snapshot = await getDocs(vendasQuery);
+      const mapped = snapshot.docs.map((d) => mapVendaToFrontend(d.data(), d.id));
+      memoryCache = mapped;
+      lastFetchTime = Date.now();
+      writeLocalBackup("vendas_backup", mapped);
+      return mapped;
+    } catch (error) {
+      const backup = readLocalBackup<Venda>("vendas_backup");
+      if (backup.length > 0) {
+        memoryCache = backup;
+        lastFetchTime = Date.now();
+        return backup;
+      }
+      throw error;
+    } finally {
+      fetchPromise = null;
+    }
   })();
+
   return fetchPromise;
 }
 
@@ -181,16 +214,29 @@ export async function getEstoque(forceRefresh = false): Promise<ItemEstoque[]> {
   if (estoqueFetchPromise) return estoqueFetchPromise;
 
   estoqueFetchPromise = (async () => {
-    const estoqueQuery = query(collection(db, ESTOQUE_COLLECTION), orderBy("dataCompra", "desc"));
-    const snapshot = await getDocs(estoqueQuery);
-    const mapped = snapshot.docs
-      .map((d) => mapEstoqueToFrontend({ id: d.id, ...d.data() }))
-      .sort((a, b) => b.dataCompra.localeCompare(a.dataCompra));
-    estoqueCache = mapped;
-    lastEstoqueFetchTime = Date.now();
-    estoqueFetchPromise = null;
-    return mapped;
+    try {
+      const estoqueQuery = query(collection(db, ESTOQUE_COLLECTION), orderBy("dataCompra", "desc"));
+      const snapshot = await getDocs(estoqueQuery);
+      const mapped = snapshot.docs
+        .map((d) => mapEstoqueToFrontend({ id: d.id, ...d.data() }))
+        .sort((a, b) => b.dataCompra.localeCompare(a.dataCompra));
+      estoqueCache = mapped;
+      lastEstoqueFetchTime = Date.now();
+      writeLocalBackup("estoque_backup", mapped);
+      return mapped;
+    } catch (error) {
+      const backup = readLocalBackup<ItemEstoque>("estoque_backup");
+      if (backup.length > 0) {
+        estoqueCache = backup;
+        lastEstoqueFetchTime = Date.now();
+        return backup;
+      }
+      throw error;
+    } finally {
+      estoqueFetchPromise = null;
+    }
   })();
+
   return estoqueFetchPromise;
 }
 
@@ -413,7 +459,7 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
  
    console.log("OCR Result:", text); 
  
-   // ── 1. DATA ─────────────────────────────────────────────────────────────── 
+   // â”€â”€ 1. DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 
    let dataCompra = new Date().toISOString().split("T")[0]; 
    const dateMatch = text.match(/(\d{1,2})\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez),?\s+(\d{4})/i); 
    if (dateMatch) { 
@@ -424,7 +470,7 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
      dataCompra = `${dateMatch[3]}-${months[dateMatch[2].toLowerCase()]}-${dateMatch[1].padStart(2,"0")}`; 
    } 
  
-   // ── 2. IMPOSTOS E DESCONTOS DO PEDIDO ──────────────────────────────────── 
+   // â”€â”€ 2. IMPOSTOS E DESCONTOS DO PEDIDO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 
    const impostoMatch  = text.match(/impostos?[:\s]+R\$\s*(\d+[,.]\d+)/i); 
    const descontoMatch = text.match(/todos\s+os\s+descontos?[:\s]+R\$\s*(\d+[,.]\d+)/i); 
  
@@ -433,7 +479,7 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
  
    console.log(`[Pedido] Impostos: R$${totalImpostos} | Descontos: R$${totalDescontos}`); 
  
-   // ── 3. ITENS ────────────────────────────────────────────────────────────── 
+   // â”€â”€ 3. ITENS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 
    const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0); 
  
    interface RawItem { 
@@ -466,7 +512,7 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
      }); 
    } 
  
-   // ── 4. RATEAR DESCONTOS E IMPOSTOS PROPORCIONALMENTE ───────────────────── 
+   // â”€â”€ 4. RATEAR DESCONTOS E IMPOSTOS PROPORCIONALMENTE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 
    // Base de rateio = subtotal bruto de cada item (antes de qualquer ajuste) 
    const subtotalPedido = rawItems.reduce( 
      (sum, item) => sum + item.valorUnitario * item.quantidade, 0 
@@ -480,7 +526,7 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
      const descontosRateados = parseFloat((totalDescontos * proporcao).toFixed(2)); 
      const impostosRateados  = parseFloat((totalImpostos  * proporcao).toFixed(2)); 
  
-     // Custo real = (subtotal − desconto + imposto) / quantidade 
+     // Custo real = (subtotal âˆ’ desconto + imposto) / quantidade 
      const valorFinal = parseFloat( 
        ((subtotalItem - descontosRateados + impostosRateados) / item.quantidade).toFixed(2) 
      ); 
@@ -502,7 +548,7 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
      }; 
    }); 
  
-   // ── 5. FALLBACK ─────────────────────────────────────────────────────────── 
+   // â”€â”€ 5. FALLBACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ 
    if (items.length === 0) { 
      const priceMatch = text.match(/R\$\s*(\d+[,.]\d+)/i); 
      const qtyMatch   = text.match(/x(\d+)/i); 
@@ -520,3 +566,4 @@ export async function parseAliExpressReceipt(imageFile: File): Promise<Partial<I
  
    return items; 
  }
+
